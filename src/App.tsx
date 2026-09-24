@@ -1,11 +1,13 @@
 import confetti from 'canvas-confetti'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { formatTime, useTimes, type Time } from './lib/times'
+import { SessionPicker } from './SessionPicker'
+import { formatDate, formatTime } from './lib/format'
+import { useSessions, type SessionsState } from './lib/sessions'
 import { useStopwatch } from './lib/useStopwatch'
 
 type SortMode = 'recent' | 'asc' | 'desc'
 
-type Undo = { label: string; snapshot: Time[] }
+type Undo = { label: string; snapshot: SessionsState }
 
 const SORT_LABELS: Record<SortMode, string> = {
   recent: 'Récents',
@@ -28,12 +30,26 @@ function loadSort(): SortMode {
 }
 
 export default function App() {
-  const { times, add, remove, replaceAll } = useTimes()
+  const {
+    state,
+    current,
+    sessions,
+    addTime,
+    removeTime,
+    clearTimes,
+    createSession,
+    selectSession,
+    renameSession,
+    deleteSession,
+    restore,
+  } = useSessions()
+  const times = current.times
   const { running, elapsed, start, stop, reset } = useStopwatch()
   const [lastId, setLastId] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>(loadSort)
   const [undo, setUndo] = useState<Undo | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const undoTimer = useRef<number>(undefined)
 
   useEffect(() => {
@@ -46,7 +62,7 @@ export default function App() {
 
   const lastTime = times.find((t) => t.id === lastId) ?? null
 
-  const showUndo = useCallback((label: string, snapshot: Time[]) => {
+  const showUndo = useCallback((label: string, snapshot: SessionsState) => {
     window.clearTimeout(undoTimer.current)
     setUndo({ label, snapshot })
     undoTimer.current = window.setTimeout(() => setUndo(null), UNDO_DELAY)
@@ -61,28 +77,57 @@ export default function App() {
     (id: string) => {
       const index = times.findIndex((t) => t.id === id)
       if (index === -1) return
-      showUndo(`Temps n°${index + 1} supprimé`, times)
-      remove(id)
+      showUndo(`Temps n°${index + 1} supprimé`, state)
+      removeTime(id)
       if (id === lastId) setLastId(null)
     },
-    [times, remove, lastId, showUndo],
+    [times, state, removeTime, lastId, showUndo],
   )
 
   const applyUndo = useCallback(() => {
     if (!undo) return
-    replaceAll(undo.snapshot)
+    restore(undo.snapshot)
+    setLastId(null)
     dismissUndo()
-  }, [undo, replaceAll, dismissUndo])
+  }, [undo, restore, dismissUndo])
 
   const clearAll = () => {
     if (!confirmClear) {
       setConfirmClear(true)
       return
     }
-    showUndo(`${times.length} temps supprimés`, times)
-    replaceAll([])
+    showUndo(`${times.length} temps supprimés`, state)
+    clearTimes()
     setLastId(null)
     setConfirmClear(false)
+  }
+
+  // Changer de session repart d'un chrono vierge
+  const leaveCurrentSession = () => {
+    // Le snapshot d'annulation écraserait la session créée/sélectionnée
+    dismissUndo()
+    reset()
+    setLastId(null)
+    setConfirmClear(false)
+  }
+
+  const handleSelectSession = (id: string) => {
+    if (id === current.id) return
+    leaveCurrentSession()
+    selectSession(id)
+  }
+
+  const handleCreateSession = () => {
+    leaveCurrentSession()
+    return createSession()
+  }
+
+  const handleDeleteSession = (id: string) => {
+    const session = sessions.find((s) => s.id === id)
+    if (!session) return
+    if (id === current.id) leaveCurrentSession()
+    showUndo(`Session « ${session.name} » supprimée`, state)
+    deleteSession(id)
   }
 
   const toggle = useCallback(() => {
@@ -90,15 +135,16 @@ export default function App() {
       const ms = stop()
       // Record battu uniquement s'il existait déjà au moins un temps
       if (times.length > 0 && times.every((t) => ms < t.ms)) celebrate()
-      setLastId(add(ms).id)
+      setLastId(addTime(ms).id)
     } else {
       // Un nouveau solve invalide l'annulation (le snapshot écraserait ce temps)
       dismissUndo()
       setConfirmClear(false)
+      setMenuOpen(false)
       setLastId(null)
       start()
     }
-  }, [running, stop, add, start, dismissUndo, times])
+  }, [running, stop, addTime, start, dismissUndo, times])
 
   const cancelRun = useCallback(() => {
     reset()
@@ -106,6 +152,8 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Laisse les champs texte (renommage de session) tranquilles
+      if (e.target instanceof HTMLInputElement) return
       if (e.code === 'Space') {
         e.preventDefault()
         if (!e.repeat) toggle()
@@ -114,7 +162,7 @@ export default function App() {
       if (e.repeat) return
       if (e.key === 'Escape') {
         if (running) cancelRun()
-        else setConfirmClear(false)
+        else if (!menuOpen) setConfirmClear(false)
         return
       }
       if ((e.key === 'Backspace' || e.key === 'Delete') && !running && lastId) {
@@ -129,7 +177,7 @@ export default function App() {
     }
     // Empêche un bouton focus d'être « cliqué » par la barre d'espace
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') e.preventDefault()
+      if (e.code === 'Space' && !(e.target instanceof HTMLInputElement)) e.preventDefault()
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -137,7 +185,7 @@ export default function App() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [toggle, running, cancelRun, lastId, deleteTime, undo, applyUndo])
+  }, [toggle, running, cancelRun, lastId, deleteTime, undo, applyUndo, menuOpen])
 
   const stats = useMemo(() => {
     if (times.length === 0) return null
@@ -163,6 +211,7 @@ export default function App() {
   return (
     <div className={`app ${running ? 'is-running' : ''}`}>
       <main className="stage" onPointerDown={(e) => e.button === 0 && toggle()}>
+        <div className="stage-session">{current.name}</div>
         <div className="display" aria-live="off">
           {formatTime(elapsed)}
         </div>
@@ -191,6 +240,17 @@ export default function App() {
       </main>
 
       <aside className="panel">
+        <SessionPicker
+          sessions={sessions}
+          current={current}
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
+          onSelect={handleSelectSession}
+          onCreate={handleCreateSession}
+          onRename={renameSession}
+          onDelete={handleDeleteSession}
+        />
+
         <section className="stats">
           <Stat label="Meilleur" value={stats ? formatTime(stats.best.ms) : '–'} accent />
           <Stat label="Moyenne" value={stats ? formatTime(stats.avg) : '–'} />
@@ -217,7 +277,7 @@ export default function App() {
         </div>
 
         {rows.length === 0 ? (
-          <p className="empty">Aucun temps pour l'instant.</p>
+          <p className="empty">Aucun temps dans cette session.</p>
         ) : (
           <ol className="list">
             {rows.map((t) => {
@@ -230,14 +290,7 @@ export default function App() {
                 >
                   <span className="n">#{t.n}</span>
                   <span className="ms">{formatTime(t.ms)}</span>
-                  <span className="date">
-                    {new Date(t.date).toLocaleString('fr-FR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
+                  <span className="date">{formatDate(t.date)}</span>
                   <button
                     className="del"
                     aria-label={`Supprimer le temps n°${t.n}`}

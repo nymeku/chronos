@@ -364,3 +364,218 @@ kbd {
     overflow: visible;
   }
 }
+
+/* ---------- Sessions ---------- */
+
+.stage-session {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-picker {
+  position: relative;
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.session-current {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.5rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  transition: border-color 0.15s;
+}
+
+.session-current:hover,
+.session-current[aria-expanded='true'] {
+  border-color: var(--muted);
+}
+
+.session-eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.session-name {
+  grid-row: 2;
+  font-weight: 600;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.chevron.up {
+  transform: rotate(180deg);
+}
+
+.icon-btn {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.name-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  outline: none;
+}
+
+.session-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  animation: toast-in-menu 0.12s ease-out;
+}
+
+@keyframes toast-in-menu {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.session-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border-radius: 8px;
+}
+
+.session-item:hover {
+  background: var(--border);
+}
+
+.session-item.current {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.session-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  background: none;
+}
+
+.session-item-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-item.current .session-item-name {
+  color: var(--accent);
+}
+
+.session-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.session-actions {
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.session-item:hover .session-actions,
+.session-actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .session-actions {
+    opacity: 1;
+  }
+}
+
+.session-new {
+  margin-top: 0.3rem;
+  padding: 0.6rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.session-new:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
