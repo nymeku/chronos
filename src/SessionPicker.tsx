@@ -88,6 +88,19 @@ export function SessionPicker({
             ✎
           </button>
         )}
+        {!editingHeader && (
+          <button
+            className="icon-btn danger"
+            title="Supprimer la session"
+            aria-label="Supprimer la session"
+            onClick={() => {
+              onOpenChange(false)
+              onDelete(current.id)
+            }}
+          >
+            <TrashIcon />
+          </button>
+        )}
         <button
           className="icon-btn"
           title="Nouvelle session"
@@ -187,5 +200,13 @@ function NameInput({ initial, onDone }: { initial: string; onDone: (name: string
         if (e.key === 'Escape') finish(null)
       }}
     />
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    </svg>
   )
 }

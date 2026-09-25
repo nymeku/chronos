@@ -1,9 +1,11 @@
 import confetti from 'canvas-confetti'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SessionPicker } from './SessionPicker'
+import { ThemePicker } from './ThemePicker'
 import { formatDate, formatTime } from './lib/format'
 import { useSessions, type SessionsState } from './lib/sessions'
 import { useStopwatch } from './lib/useStopwatch'
+import { useTheme, type Theme } from './lib/theme'
 
 type SortMode = 'recent' | 'asc' | 'desc'
 
@@ -17,6 +19,8 @@ const SORT_LABELS: Record<SortMode, string> = {
 
 const SORT_KEY = 'chrono.sort'
 const UNDO_DELAY = 6000
+// Le chrono passe en « alerte » à partir de ce délai avant le meilleur temps
+const WARN_MS = 5000
 const UNDO_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘Z' : 'Ctrl+Z'
 
 function loadSort(): SortMode {
@@ -45,6 +49,7 @@ export default function App() {
   } = useSessions()
   const times = current.times
   const { running, elapsed, start, stop, reset } = useStopwatch()
+  const { theme, setTheme } = useTheme()
   const [lastId, setLastId] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>(loadSort)
   const [undo, setUndo] = useState<Undo | null>(null)
@@ -134,7 +139,7 @@ export default function App() {
     if (running) {
       const ms = stop()
       // Record battu uniquement s'il existait déjà au moins un temps
-      if (times.length > 0 && times.every((t) => ms < t.ms)) celebrate()
+      if (times.length > 0 && times.every((t) => ms < t.ms)) celebrate(theme)
       setLastId(addTime(ms).id)
     } else {
       // Un nouveau solve invalide l'annulation (le snapshot écraserait ce temps)
@@ -144,7 +149,7 @@ export default function App() {
       setLastId(null)
       start()
     }
-  }, [running, stop, addTime, start, dismissUndo, times])
+  }, [running, stop, addTime, start, dismissUndo, times, theme])
 
   const cancelRun = useCallback(() => {
     reset()
@@ -206,20 +211,30 @@ export default function App() {
     return numbered.sort((a, b) => (sort === 'asc' ? a.ms - b.ms : b.ms - a.ms))
   }, [times, sort])
 
+  let pace = ''
+  if (running) {
+    if (!stats || elapsed < stats.best.ms - WARN_MS) pace = 'pace-ok'
+    else if (elapsed <= stats.best.ms) pace = 'pace-warn'
+    else pace = 'pace-over'
+  }
+
   const isNewBest = !running && lastTime && stats?.best.id === lastTime.id && times.length > 1
 
   return (
     <div className={`app ${running ? 'is-running' : ''}`}>
-      <main className="stage" onPointerDown={(e) => e.button === 0 && toggle()}>
+      {/* Sur desktop seule la barre d'espace déclenche le chrono ; le tap reste actif sur écran tactile */}
+      <main className="stage" onPointerDown={(e) => e.pointerType !== 'mouse' && toggle()}>
         <div className="stage-session">{current.name}</div>
-        <div className="display" aria-live="off">
+        <div className={`display ${pace}`} aria-live="off">
           {formatTime(elapsed)}
         </div>
 
         <div className="stage-footer" onPointerDown={(e) => e.stopPropagation()}>
           {running ? (
             <p className="hint">
-              <kbd>Espace</kbd> pour arrêter · <kbd>Échap</kbd> pour annuler
+              <kbd>Espace</kbd>
+              <span className="touch-only"> (ou touche l'écran)</span> pour arrêter ·{' '}
+              <kbd>Échap</kbd> pour annuler
             </p>
           ) : lastTime ? (
             <div className="last">
@@ -228,12 +243,14 @@ export default function App() {
                 Supprimer ce temps <kbd>⌫</kbd>
               </button>
               <p className="hint">
-                <kbd>Espace</kbd> pour relancer
+                <kbd>Espace</kbd>
+                <span className="touch-only"> (ou touche l'écran)</span> pour relancer
               </p>
             </div>
           ) : (
             <p className="hint">
-              Appuie sur <kbd>Espace</kbd> (ou touche l'écran) pour démarrer
+              Appuie sur <kbd>Espace</kbd>
+              <span className="touch-only"> (ou touche l'écran)</span> pour démarrer
             </p>
           )}
         </div>
@@ -314,6 +331,8 @@ export default function App() {
             {confirmClear ? 'Cliquer encore pour tout effacer' : 'Tout effacer'}
           </button>
         )}
+
+        <ThemePicker theme={theme} onChange={setTheme} />
       </aside>
 
       {undo && (
@@ -328,8 +347,8 @@ export default function App() {
   )
 }
 
-function celebrate() {
-  const colors = ['#4ade80', '#fbbf24', '#60a5fa', '#f472b6', '#ffffff']
+function celebrate(theme: Theme) {
+  const colors = [theme.accent, theme.ok, theme.warn, theme.over, theme.text]
   const burst = (x: number, angle: number) =>
     confetti({ particleCount: 90, spread: 70, startVelocity: 55, angle, origin: { x, y: 0.7 }, colors, disableForReducedMotion: true })
   burst(0.15, 60)

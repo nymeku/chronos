@@ -1,4 +1,5 @@
 :root {
+  /* Valeurs par défaut (thème Nuit) ; écrasées par useTheme sur <html> */
   --bg: #0e0f13;
   --surface: #16181e;
   --surface-2: #1d2028;
@@ -6,10 +7,13 @@
   --text: #e8eaf0;
   --muted: #8a90a0;
   --accent: #4ade80;
-  --accent-soft: rgba(74, 222, 128, 0.12);
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.12);
-  --running: #fbbf24;
+  --timer-ok: #4ade80;
+  --timer-warn: #fbbf24;
+  --timer-over: #f87171;
+
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --danger: var(--timer-over);
+  --danger-soft: color-mix(in srgb, var(--timer-over) 14%, transparent);
 
   color-scheme: dark;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -64,7 +68,6 @@ kbd {
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  cursor: pointer;
 }
 
 .display {
@@ -74,11 +77,19 @@ kbd {
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1;
-  transition: color 0.15s;
+  transition: color 0.3s;
 }
 
-.is-running .display {
-  color: var(--running);
+.display.pace-ok {
+  color: var(--timer-ok);
+}
+
+.display.pace-warn {
+  color: var(--timer-warn);
+}
+
+.display.pace-over {
+  color: var(--timer-over);
 }
 
 .stage-footer {
@@ -278,7 +289,7 @@ kbd {
 }
 
 .row.last-row {
-  box-shadow: inset 2px 0 0 var(--running);
+  box-shadow: inset 2px 0 0 var(--timer-warn);
 }
 
 .del {
@@ -318,6 +329,63 @@ kbd {
 .clear.confirm {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+/* ---------- Thèmes ---------- */
+
+.theme-picker {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.theme-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.theme-name {
+  margin-left: 0.4rem;
+  color: var(--text);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid;
+  border-radius: 50%;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatch[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text);
+}
+
+/* Mention du tap uniquement sur les écrans tactiles */
+.touch-only {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .touch-only {
+    display: inline;
+  }
 }
 
 /* ---------- Toast ---------- */
